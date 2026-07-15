@@ -1,0 +1,34 @@
+name: Build BlackBridge Gallery
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: brew install ldid-procursus make
+      - name: Checkout Theos
+        uses: actions/checkout@v4
+        with:
+          repository: theos/theos
+          path: theos
+          submodules: recursive
+      - name: Install iOS SDK
+        run: |
+          export THEOS="$GITHUB_WORKSPACE/theos"
+          "$THEOS/bin/install-sdk" iPhoneOS16.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build rootless package
+        run: |
+          export THEOS="$GITHUB_WORKSPACE/theos"
+          cd BlackBridgeGallery
+          gmake clean package FINALPACKAGE=1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BlackBridgeGallery-rootless
+          path: BlackBridgeGallery/packages/*.deb
+          if-no-files-found: error
