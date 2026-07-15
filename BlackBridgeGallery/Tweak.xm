@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 #import <Photos/Photos.h>
 
 static NSString *const BBInbox = @"/var/mobile/Media/Downloads/BlackBridge";
