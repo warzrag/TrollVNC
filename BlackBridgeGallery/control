@@ -1,6 +1,6 @@
 Package: com.blackbridge.gallery
 Name: BlackBridge Gallery
-Version: 0.3.0
+Version: 0.4.0
 Architecture: iphoneos-arm64
 Description: Importe les médias dans Photos et renvoie la copie native à BlackBridge par USB.
 Maintainer: BlackBridge

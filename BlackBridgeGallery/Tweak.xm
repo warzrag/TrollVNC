@@ -9,6 +9,17 @@ static NSMutableSet<NSString *> *BBImportsInFlight;
 static dispatch_source_t BBTimer;
 static int BBCopyNotificationToken;
 static NSString *BBCopyRequestID;
+static __weak UIResponder *BBCapturedFirstResponder;
+
+@interface UIResponder (BlackBridgeFirstResponder)
+- (void)blackBridgeCaptureFirstResponder:(id)sender;
+@end
+
+@implementation UIResponder (BlackBridgeFirstResponder)
+- (void)blackBridgeCaptureFirstResponder:(id)sender {
+    BBCapturedFirstResponder = self;
+}
+@end
 
 static BOOL BBIsVideo(NSString *extension) {
     return [@[@"mov", @"mp4", @"m4v"] containsObject:extension];
@@ -101,8 +112,19 @@ static void BBScanInbox(void) {
     notify_register_dispatch("com.blackbridge.gallery.copy", &BBCopyNotificationToken, dispatch_get_main_queue(), ^(int token) {
         UIApplication *application = [UIApplication sharedApplication];
         if (application) {
-            [application sendAction:@selector(copy:) to:nil from:nil forEvent:nil];
-            NSLog(@"[BlackBridgeGallery] Native copy action requested");
+            BBCapturedFirstResponder = nil;
+            [application sendAction:@selector(blackBridgeCaptureFirstResponder:) to:nil from:nil forEvent:nil];
+            UIResponder *responder = BBCapturedFirstResponder;
+            if (responder && [responder respondsToSelector:@selector(copy:)]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+                [responder performSelector:@selector(copy:) withObject:nil];
+#pragma clang diagnostic pop
+                NSLog(@"[BlackBridgeGallery] Direct copy on responder %@", NSStringFromClass(responder.class));
+            } else {
+                [application sendAction:@selector(copy:) to:nil from:nil forEvent:nil];
+                NSLog(@"[BlackBridgeGallery] Fallback copy action requested");
+            }
         }
         if ([[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
             NSString *requestID = [BBCopyRequestID copy] ?: @"";
