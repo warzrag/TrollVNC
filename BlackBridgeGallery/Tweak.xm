@@ -8,6 +8,7 @@ static NSMutableDictionary<NSString *, NSNumber *> *BBObservedSizes;
 static NSMutableSet<NSString *> *BBImportsInFlight;
 static dispatch_source_t BBTimer;
 static int BBCopyNotificationToken;
+static NSString *BBCopyRequestID;
 
 static BOOL BBIsVideo(NSString *extension) {
     return [@[@"mov", @"mp4", @"m4v"] containsObject:extension];
@@ -53,6 +54,7 @@ static void BBScanInbox(void) {
     for (NSString *name in names) {
         if ([name isEqualToString:@".copy-request"]) {
             NSString *requestPath = [BBInbox stringByAppendingPathComponent:name];
+            BBCopyRequestID = [NSString stringWithContentsOfFile:requestPath encoding:NSUTF8StringEncoding error:nil];
             [manager removeItemAtPath:requestPath error:nil];
             notify_post("com.blackbridge.gallery.copy");
             continue;
@@ -101,6 +103,18 @@ static void BBScanInbox(void) {
         if (application) {
             [application sendAction:@selector(copy:) to:nil from:nil forEvent:nil];
             NSLog(@"[BlackBridgeGallery] Native copy action requested");
+        }
+        if ([[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
+            NSString *requestID = [BBCopyRequestID copy] ?: @"";
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 700 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
+                NSString *text = [UIPasteboard generalPasteboard].string;
+                if (!text) return;
+                NSDictionary *response = @{ @"requestId": requestID, @"text": text };
+                NSData *data = [NSJSONSerialization dataWithJSONObject:response options:0 error:nil];
+                NSString *responsePath = [BBInbox stringByAppendingPathComponent:@".clipboard-response.json"];
+                [data writeToFile:responsePath atomically:YES];
+                NSLog(@"[BlackBridgeGallery] Clipboard response ready (%lu chars)", (unsigned long)text.length);
+            });
         }
     });
 }
