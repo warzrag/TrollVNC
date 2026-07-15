@@ -1,11 +1,13 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <Photos/Photos.h>
+#import <notify.h>
 
 static NSString *const BBInbox = @"/var/mobile/Media/Downloads/BlackBridge";
 static NSMutableDictionary<NSString *, NSNumber *> *BBObservedSizes;
 static NSMutableSet<NSString *> *BBImportsInFlight;
 static dispatch_source_t BBTimer;
+static int BBCopyNotificationToken;
 
 static BOOL BBIsVideo(NSString *extension) {
     return [@[@"mov", @"mp4", @"m4v"] containsObject:extension];
@@ -49,6 +51,12 @@ static void BBScanInbox(void) {
     NSMutableSet<NSString *> *present = [NSMutableSet set];
 
     for (NSString *name in names) {
+        if ([name isEqualToString:@".copy-request"]) {
+            NSString *requestPath = [BBInbox stringByAppendingPathComponent:name];
+            [manager removeItemAtPath:requestPath error:nil];
+            notify_post("com.blackbridge.gallery.copy");
+            continue;
+        }
         if ([name hasPrefix:@"."]) continue;
         NSString *extension = name.pathExtension.lowercaseString;
         if (!BBIsSupported(extension)) continue;
@@ -86,3 +94,13 @@ static void BBScanInbox(void) {
 }
 
 %end
+
+%ctor {
+    notify_register_dispatch("com.blackbridge.gallery.copy", &BBCopyNotificationToken, dispatch_get_main_queue(), ^(int token) {
+        UIApplication *application = [UIApplication sharedApplication];
+        if (application) {
+            [application sendAction:@selector(copy:) to:nil from:nil forEvent:nil];
+            NSLog(@"[BlackBridgeGallery] Native copy action requested");
+        }
+    });
+}
