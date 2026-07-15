@@ -8,7 +8,7 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = BlackBridgeGallery
 BlackBridgeGallery_FILES = Tweak.xm
 BlackBridgeGallery_CFLAGS = -fobjc-arc
-BlackBridgeGallery_CCFLAGS = -std=c++17
+BlackBridgeGallery_OBJCCFLAGS = -std=c++17
 BlackBridgeGallery_FRAMEWORKS = Foundation UIKit Photos
 
 include $(THEOS_MAKE_PATH)/tweak.mk
